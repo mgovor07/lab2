@@ -4,6 +4,8 @@
 #include <string>
 #include <limits>
 #include <filesystem>
+#include <algorithm>
+#include <sstream>
 
 using namespace std;
 namespace fs = filesystem;
@@ -110,8 +112,110 @@ private:
         }
         return input;
     }
+    
+    vector<int> selectMultiplePipes() {
+            if (pipes.empty()) {
+                cout << "Нет доступных труб!\n";
+                return {};
+            }
+            
+            viewAll();
+            cout << "\nВыберите номера труб через запятую (например: 0,2,3) или 'all' для выбора всех: ";
+            string input;
+            getline(cin, input);
+            
+            if (input == "all" || input == "ALL") {
+                vector<int> allIndices;
+                for (int i = 0; i < pipes.size(); ++i) {
+                    allIndices.push_back(i);
+                }
+                return allIndices;
+            }
+            
+            vector<int> indices;
+            stringstream ss(input);
+            string token;
+            
+            while (getline(ss, token, ',')) {
+                try {
+                    int index = stoi(token);
+                    if (index >= 0 && index < pipes.size()) {
+                        indices.push_back(index);
+                    } else {
+                        cout << "Предупреждение: номер " << index << " не существует и будет пропущен.\n";
+                    }
+                } catch (const exception&) {
+                    cout << "Предупреждение: '" << token << "' не является числом и будет пропущено.\n";
+                }
+            }
+            
+            sort(indices.begin(), indices.end());
+            indices.erase(unique(indices.begin(), indices.end()), indices.end());
+            
+            return indices;
+        }
+
+        vector<int> selectMultipleStations() {
+            if (stations.empty()) {
+                cout << "Нет доступных КС!\n";
+                return {};
+            }
+            
+            viewAll();
+            cout << "\nВыберите номера КС через запятую (например: 0,2,3) или 'all' для выбора всех: ";
+            string input;
+            getline(cin, input);
+            
+            if (input == "all" || input == "ALL") {
+                vector<int> allIndices;
+                for (int i = 0; i < stations.size(); ++i) {
+                    allIndices.push_back(i);
+                }
+                return allIndices;
+            }
+            
+            vector<int> indices;
+            stringstream ss(input);
+            string token;
+            
+            while (getline(ss, token, ',')) {
+                try {
+                    int index = stoi(token);
+                    if (index >= 0 && index < stations.size()) {
+                        indices.push_back(index);
+                    } else {
+                        cout << "Предупреждение: номер " << index << " не существует и будет пропущен.\n";
+                    }
+                } catch (const exception&) {
+                    cout << "Предупреждение: '" << token << "' не является числом и будет пропущено.\n";
+                }
+            }
+            
+            sort(indices.begin(), indices.end());
+            indices.erase(unique(indices.begin(), indices.end()), indices.end());
+            
+            return indices;
+        }
 
 public:
+    void addMultiplePipes() {
+            int count = getIntInput("Сколько труб добавить? ", 1, 100);
+            for (int i = 0; i < count; ++i) {
+                cout << "\n--- Добавление трубы " << (i + 1) << " из " << count << " ---\n";
+                addPipe();
+            }
+            cout << "Добавлено " << count << " труб. Всего труб: " << pipes.size() << "\n";
+        }
+
+        void addMultipleStations() {
+            int count = getIntInput("Сколько КС добавить? ", 1, 100);
+            for (int i = 0; i < count; ++i) {
+                cout << "\n--- Добавление КС " << (i + 1) << " из " << count << " ---\n";
+                addStation();
+            }
+            cout << "Добавлено " << count << " КС. Всего КС: " << stations.size() << "\n";
+        }
+    
     void addPipe() {
         Pipe newPipe;
         newPipe.name = getStringInput("Введите название трубы: ");
@@ -136,6 +240,96 @@ public:
         stations.push_back(newStation);
         cout << "КС добавлена!\n";
     }
+    
+    void deleteMultiplePipes() {
+            vector<int> indices = selectMultiplePipes();
+            if (indices.empty()) return;
+            
+            sort(indices.rbegin(), indices.rend());
+            int count = 0;
+            
+            for (int index : indices) {
+                cout << "Удалена труба: " << pipes[index].name << "\n";
+                pipes.erase(pipes.begin() + index);
+                count++;
+            }
+            
+            cout << "Удалено " << count << " труб. Осталось труб: " << pipes.size() << "\n";
+        }
+
+        void deleteMultipleStations() {
+            vector<int> indices = selectMultipleStations();
+            if (indices.empty()) return;
+            
+            sort(indices.rbegin(), indices.rend());
+            int count = 0;
+            
+            for (int index : indices) {
+                cout << "Удалена КС: " << stations[index].name << "\n";
+                stations.erase(stations.begin() + index);
+                count++;
+            }
+            
+            cout << "Удалено " << count << " КС. Осталось КС: " << stations.size() << "\n";
+        }
+
+        void editMultiplePipes() {
+            vector<int> indices = selectMultiplePipes();
+            if (indices.empty()) return;
+            
+            cout << "\nВыбрано " << indices.size() << " труб для редактирования.\n";
+            cout << "1. Изменить статус ремонта для всех\n2. Изменить диаметр для всех\n";
+            int choice = getIntInput("Выберите действие: ", 1, 2);
+            
+            if (choice == 1) {
+                cout << "1. Поставить все на ремонт\n2. Снять все с ремонта\n3. Инвертировать статус\n";
+                int action = getIntInput("Выберите действие: ", 1, 3);
+                
+                for (int index : indices) {
+                    if (action == 1) pipes[index].underRepair = true;
+                    else if (action == 2) pipes[index].underRepair = false;
+                    else pipes[index].underRepair = !pipes[index].underRepair;
+                }
+                cout << "Статус ремонта изменен для " << indices.size() << " труб.\n";
+            } else {
+                int newDiameter = getIntInput("Введите новый диаметр для всех выбранных труб (мм): ", 1);
+                for (int index : indices) {
+                    pipes[index].diameter = newDiameter;
+                }
+                cout << "Диаметр изменен для " << indices.size() << " труб.\n";
+            }
+        }
+
+        void editMultipleStations() {
+            vector<int> indices = selectMultipleStations();
+            if (indices.empty()) return;
+            
+            cout << "\nВыбрано " << indices.size() << " КС для редактирования.\n";
+            cout << "1. Запустить цехи\n2. Остановить цехи\n3. Изменить класс\n";
+            int choice = getIntInput("Выберите действие: ", 1, 3);
+            
+            if (choice == 1) {
+                for (int index : indices) {
+                    if (stations[index].activeWorkshops < stations[index].totalWorkshops) {
+                        stations[index].activeWorkshops++;
+                    }
+                }
+                cout << "Запущены цехи для " << indices.size() << " КС.\n";
+            } else if (choice == 2) {
+                for (int index : indices) {
+                    if (stations[index].activeWorkshops > 0) {
+                        stations[index].activeWorkshops--;
+                    }
+                }
+                cout << "Остановлены цехи для " << indices.size() << " КС.\n";
+            } else {
+                int newClass = getIntInput("Введите новый класс для всех выбранных КС: ", 1);
+                for (int index : indices) {
+                    stations[index].stationClass = newClass;
+                }
+                cout << "Класс изменен для " << indices.size() << " КС.\n";
+            }
+        }
 
     void viewAll() const {
         if (pipes.empty() && stations.empty()) {
@@ -323,25 +517,59 @@ public:
     void run() {
         while (true) {
             cout << "\n=== Система управления трубопроводом ===\n"
-                 << "1. Добавить трубу\n"
-                 << "2. Добавить КС\n"
-                 << "3. Просмотр всех объектов\n"
-                 << "4. Редактировать трубу\n"
-                 << "5. Редактировать КС\n"
-                 << "6. Сохранить данные\n"
-                 << "7. Загрузить данные\n"
-                 << "0. Выход\n";
+                             << "1. Добавить трубу\n"
+                             << "2. Добавить КС\n"
+                             << "3. Добавить несколько труб\n"
+                             << "4. Добавить несколько КС\n"
+                             << "5. Просмотр всех объектов\n"
+                             << "6. Редактировать трубу\n"
+                             << "7. Редактировать КС\n"
+                             << "8. Редактировать несколько труб\n"
+                             << "9. Редактировать несколько КС\n"
+                             << "10. Удалить трубу\n"
+                             << "11. Удалить КС\n"
+                             << "12. Удалить несколько труб\n"
+                             << "13. Удалить несколько КС\n"
+                             << "14. Сохранить данные\n"
+                             << "15. Загрузить данные\n"
+                             << "0. Выход\n";
             
-            int choice = getIntInput("Выберите действие: ", 0, 7);
+            int choice = getIntInput("Выберите действие: ", 0, 15);
             
             switch (choice) {
                 case 1: addPipe(); break;
                 case 2: addStation(); break;
-                case 3: viewAll(); break;
-                case 4: editPipe(); break;
-                case 5: editStation(); break;
-                case 6: saveData(); break;
-                case 7: loadData(); break;
+                case 3: addMultiplePipes(); break;
+                case 4: addMultipleStations(); break;
+                case 5: viewAll(); break;
+                case 6: editPipe(); break;
+                case 7: editStation(); break;
+                case 8: editMultiplePipes(); break;
+                case 9: editMultipleStations(); break;
+                case 10:
+                    if (!pipes.empty()) {
+                        viewAll();
+                        int index = getIntInput("Введите номер трубы для удаления: ", 0, pipes.size()-1);
+                        cout << "Удалена труба: " << pipes[index].name << "\n";
+                        pipes.erase(pipes.begin() + index);
+                    } else {
+                        cout << "Нет доступных труб!\n";
+                    }
+                    break;
+                case 11:
+                    if (!stations.empty()) {
+                        viewAll();
+                        int index = getIntInput("Введите номер КС для удаления: ", 0, stations.size()-1);
+                        cout << "Удалена КС: " << stations[index].name << "\n";
+                        stations.erase(stations.begin() + index);
+                    } else {
+                        cout << "Нет доступных КС!\n";
+                    }
+                    break;
+                case 12: deleteMultiplePipes(); break;
+                case 13: deleteMultipleStations(); break;
+                case 14: saveData(); break;
+                case 15: loadData(); break;
                 case 0:
                     cout << "Выход из программы.\n";
                     return;
