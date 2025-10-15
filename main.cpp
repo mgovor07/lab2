@@ -11,6 +11,7 @@ using namespace std;
 namespace fs = filesystem;
 
 struct Pipe {
+    int id;
     string name;
     double length;
     int diameter;
@@ -18,6 +19,7 @@ struct Pipe {
 };
 
 struct CompressorStation {
+    int id;
     string name;
     int totalWorkshops;
     int activeWorkshops;
@@ -28,6 +30,8 @@ class PipelineSystem {
 private:
     vector<Pipe> pipes;
     vector<CompressorStation> stations;
+    int nextPipeId = 1;
+    int nextStationId = 1;
 
     // Функция для безопасного ввода целых чисел с проверкой диапазона
     int getIntInput(const string& prompt, int min = numeric_limits<int>::min(),
@@ -113,14 +117,34 @@ private:
         return input;
     }
     
-    vector<int> selectMultiplePipes() {
+    int findPipeIndexById(int id) const {
+            for (size_t i = 0; i < pipes.size(); ++i) {
+                if (pipes[i].id == id) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        // НОВОЕ: Функция для поиска КС по ID
+        int findStationIndexById(int id) const {
+            for (size_t i = 0; i < stations.size(); ++i) {
+                if (stations[i].id == id) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        // НОВОЕ: Функция для выбора объектов по ID
+        vector<int> selectMultiplePipesById() {
             if (pipes.empty()) {
                 cout << "Нет доступных труб!\n";
                 return {};
             }
             
             viewAll();
-            cout << "\nВыберите номера труб через запятую (например: 0,2,3) или 'all' для выбора всех: ";
+            cout << "\nВыберите ID труб через запятую (например: 1,3,5) или 'all' для выбора всех: ";
             string input;
             getline(cin, input);
             
@@ -138,31 +162,34 @@ private:
             
             while (getline(ss, token, ',')) {
                 try {
-                    int index = stoi(token);
-                    if (index >= 0 && index < pipes.size()) {
+                    int id = stoi(token);
+                    int index = findPipeIndexById(id);
+                    if (index != -1) {
                         indices.push_back(index);
                     } else {
-                        cout << "Предупреждение: номер " << index << " не существует и будет пропущен.\n";
+                        cout << "Предупреждение: труба с ID " << id << " не существует и будет пропущена.\n";
                     }
                 } catch (const exception&) {
                     cout << "Предупреждение: '" << token << "' не является числом и будет пропущено.\n";
                 }
             }
             
+            // Удаляем дубликаты
             sort(indices.begin(), indices.end());
             indices.erase(unique(indices.begin(), indices.end()), indices.end());
             
             return indices;
         }
 
-        vector<int> selectMultipleStations() {
+        // НОВОЕ: Функция для выбора КС по ID
+        vector<int> selectMultipleStationsById() {
             if (stations.empty()) {
                 cout << "Нет доступных КС!\n";
                 return {};
             }
             
             viewAll();
-            cout << "\nВыберите номера КС через запятую (например: 0,2,3) или 'all' для выбора всех: ";
+            cout << "\nВыберите ID КС через запятую (например: 1,3,5) или 'all' для выбора всех: ";
             string input;
             getline(cin, input);
             
@@ -180,22 +207,25 @@ private:
             
             while (getline(ss, token, ',')) {
                 try {
-                    int index = stoi(token);
-                    if (index >= 0 && index < stations.size()) {
+                    int id = stoi(token);
+                    int index = findStationIndexById(id);
+                    if (index != -1) {
                         indices.push_back(index);
                     } else {
-                        cout << "Предупреждение: номер " << index << " не существует и будет пропущен.\n";
+                        cout << "Предупреждение: КС с ID " << id << " не существует и будет пропущена.\n";
                     }
                 } catch (const exception&) {
                     cout << "Предупреждение: '" << token << "' не является числом и будет пропущено.\n";
                 }
             }
             
+            // Удаляем дубликаты
             sort(indices.begin(), indices.end());
             indices.erase(unique(indices.begin(), indices.end()), indices.end());
             
             return indices;
         }
+
 
 public:
     void addMultiplePipes() {
@@ -218,17 +248,19 @@ public:
     
     void addPipe() {
         Pipe newPipe;
+        newPipe.id = nextPipeId++;
         newPipe.name = getStringInput("Введите название трубы: ");
         newPipe.length = getDoubleInput("Введите длину трубы (км): ", 0.001);
         newPipe.diameter = getIntInput("Введите диаметр трубы (мм): ", 1);
         newPipe.underRepair = false;
         
         pipes.push_back(newPipe);
-        cout << "Труба добавлена!\n";
+        cout << "Труба '" << newPipe.name << "' добавлена с ID:" << newPipe.id << "!\n";
     }
 
     void addStation() {
         CompressorStation newStation;
+        newStation.id = nextStationId++;
         newStation.name = getStringInput("Введите название КС: ");
         newStation.totalWorkshops = getIntInput("Введите количество цехов: ", 1);
         
@@ -238,18 +270,18 @@ public:
         
         newStation.stationClass = getIntInput("Введите класс станции: ", 1);
         stations.push_back(newStation);
-        cout << "КС добавлена!\n";
+        cout << "КС '" << newStation.name << "' добавлена с ID:" << newStation.id << "!\n";
     }
     
     void deleteMultiplePipes() {
-            vector<int> indices = selectMultiplePipes();
+            vector<int> indices = selectMultiplePipesById();
             if (indices.empty()) return;
             
             sort(indices.rbegin(), indices.rend());
             int count = 0;
             
             for (int index : indices) {
-                cout << "Удалена труба: " << pipes[index].name << "\n";
+                cout << "Удалена труба: " << pipes[index].name << "(ID: " << pipes[index].id << ")\n";
                 pipes.erase(pipes.begin() + index);
                 count++;
             }
@@ -258,14 +290,14 @@ public:
         }
 
         void deleteMultipleStations() {
-            vector<int> indices = selectMultipleStations();
+            vector<int> indices = selectMultipleStationsById();
             if (indices.empty()) return;
             
             sort(indices.rbegin(), indices.rend());
             int count = 0;
             
             for (int index : indices) {
-                cout << "Удалена КС: " << stations[index].name << "\n";
+                cout << "Удалена КС: " << stations[index].name << " (ID: " << stations[index].id << ")\n";
                 stations.erase(stations.begin() + index);
                 count++;
             }
@@ -274,7 +306,7 @@ public:
         }
 
         void editMultiplePipes() {
-            vector<int> indices = selectMultiplePipes();
+            vector<int> indices = selectMultiplePipesById();
             if (indices.empty()) return;
             
             cout << "\nВыбрано " << indices.size() << " труб для редактирования.\n";
@@ -301,7 +333,7 @@ public:
         }
 
         void editMultipleStations() {
-            vector<int> indices = selectMultipleStations();
+            vector<int> indices = selectMultipleStationsById();
             if (indices.empty()) return;
             
             cout << "\nВыбрано " << indices.size() << " КС для редактирования.\n";
@@ -340,7 +372,7 @@ public:
         if (!pipes.empty()) {
             cout << "\n=== Трубы ===\n";
             for (size_t i = 0; i < pipes.size(); ++i) {
-                cout << i << ". Название: " << pipes[i].name
+                cout << "ID: " << pipes[i].id << " | Название: " << pipes[i].name
                      << ", Длина: " << pipes[i].length
                      << " км, Диаметр: " << pipes[i].diameter
                      << " мм, В ремонте: " << (pipes[i].underRepair ? "Да" : "Нет") << endl;
@@ -350,7 +382,7 @@ public:
         if (!stations.empty()) {
             cout << "\n=== Компрессорные станции ===\n";
             for (size_t i = 0; i < stations.size(); ++i) {
-                cout << i << ". Название: " << stations[i].name
+                cout << "ID: " << stations[i].id << " | Название: " << stations[i].name
                      << ", Цехов: " << stations[i].totalWorkshops
                      << ", Работает: " << stations[i].activeWorkshops
                      << ", Класс: " << stations[i].stationClass << endl;
@@ -360,68 +392,83 @@ public:
 
     void editPipe() {
         if (pipes.empty()) {
-            cout << "Нет доступных труб!\n";
-            return;
-        }
-        
-        viewAll();
-        int index = getIntInput("Введите номер трубы для редактирования: ", 0, pipes.size()-1);
-        
-        cout << "1. Изменить статус ремонта\n2. Редактировать параметры\n";
-        int choice = getIntInput("Выберите действие: ", 1, 2);
-        
-        if (choice == 1) {
-            pipes[index].underRepair = !pipes[index].underRepair;
-            cout << "Статус ремонта изменен на: "
-                 << (pipes[index].underRepair ? "В ремонте" : "Работает") << endl;
-        } else {
-            pipes[index].name = getStringInput("Введите новое название трубы: ");
-            pipes[index].length = getDoubleInput("Введите новую длину трубы (км): ", 0.001);
-            pipes[index].diameter = getIntInput("Введите новый диаметр трубы (мм): ", 1);
-            cout << "Параметры трубы обновлены!\n";
-        }
-    }
+                    cout << "Нет доступных труб!\n";
+                    return;
+                }
+                
+                viewAll();
+                int id = getIntInput("Введите ID трубы для редактирования: ", 1); // НОВОЕ: ввод по ID
+                int index = findPipeIndexById(id);
+                
+                if (index == -1) {
+                    cout << "Труба с ID " << id << " не найдена!\n";
+                    return;
+                }
+                
+                cout << "Редактирование трубы ID: " << pipes[index].id << " - " << pipes[index].name << endl;
+                cout << "1. Изменить статус ремонта\n2. Редактировать параметры\n";
+                int choice = getIntInput("Выберите действие: ", 1, 2);
+                
+                if (choice == 1) {
+                    pipes[index].underRepair = !pipes[index].underRepair;
+                    cout << "Статус ремонта изменен на: "
+                         << (pipes[index].underRepair ? "В ремонте" : "Работает") << endl;
+                } else {
+                    pipes[index].name = getStringInput("Введите новое название трубы: ");
+                    pipes[index].length = getDoubleInput("Введите новую длину трубы (км): ", 0.001);
+                    pipes[index].diameter = getIntInput("Введите новый диаметр трубы (мм): ", 1);
+                    cout << "Параметры трубы обновлены!\n";
+                }
+            }
 
     void editStation() {
         if (stations.empty()) {
-            cout << "Нет доступных КС!\n";
-            return;
-        }
-        
-        viewAll();
-        int index = getIntInput("Введите номер КС для редактирования: ", 0, stations.size()-1);
-        
-        cout << "1. Запустить/остановить цех\n2. Редактировать параметры\n";
-        int choice = getIntInput("Выберите действие: ", 1, 2);
-        
-        if (choice == 1) {
-            cout << "1. Запустить цех\n2. Остановить цех\n";
-            int action = getIntInput("Выберите действие: ", 1, 2);
-            
-            if (action == 1 && stations[index].activeWorkshops < stations[index].totalWorkshops) {
-                stations[index].activeWorkshops++;
-                cout << "Цех запущен! Работает цехов: " << stations[index].activeWorkshops << endl;
-            } else if (action == 2 && stations[index].activeWorkshops > 0) {
-                stations[index].activeWorkshops--;
-                cout << "Цех остановлен! Работает цехов: " << stations[index].activeWorkshops << endl;
-            } else {
-                cout << "Невозможно выполнить операцию!\n";
+                    cout << "Нет доступных КС!\n";
+                    return;
+                }
+                
+                viewAll();
+                int id = getIntInput("Введите ID КС для редактирования: ", 1); // НОВОЕ: ввод по ID
+                int index = findStationIndexById(id);
+                
+                if (index == -1) {
+                    cout << "КС с ID " << id << " не найдена!\n";
+                    return;
+                }
+                
+                cout << "Редактирование КС ID: " << stations[index].id << " - " << stations[index].name << endl;
+                cout << "1. Запустить/остановить цех\n2. Редактировать параметры\n";
+                int choice = getIntInput("Выберите действие: ", 1, 2);
+                
+                if (choice == 1) {
+                    cout << "Текущее состояние: " << stations[index].activeWorkshops
+                         << "/" << stations[index].totalWorkshops << " цехов работает\n";
+                    cout << "1. Запустить цех\n2. Остановить цех\n";
+                    int action = getIntInput("Выберите действие: ", 1, 2);
+                    
+                    if (action == 1 && stations[index].activeWorkshops < stations[index].totalWorkshops) {
+                        stations[index].activeWorkshops++;
+                        cout << "Цех запущен! Работает цехов: " << stations[index].activeWorkshops << endl;
+                    } else if (action == 2 && stations[index].activeWorkshops > 0) {
+                        stations[index].activeWorkshops--;
+                        cout << "Цех остановлен! Работает цехов: " << stations[index].activeWorkshops << endl;
+                    } else {
+                        cout << "Невозможно выполнить операцию!\n";
+                    }
+                } else {
+                    stations[index].name = getStringInput("Введите новое название КС: ");
+                    int newTotal = getIntInput("Введите новое количество цехов: ", 1);
+                    
+                    if (newTotal < stations[index].activeWorkshops) {
+                        stations[index].activeWorkshops = newTotal;
+                    }
+                    stations[index].totalWorkshops = newTotal;
+                    
+                    stations[index].stationClass = getIntInput("Введите новый класс станции: ", 1);
+                    cout << "Параметры КС обновлены!\n";
+                }
             }
-        } else {
-            stations[index].name = getStringInput("Введите новое название КС: ");
-            int newTotal = getIntInput("Введите новое количество цехов: ", 1);
-            
-            // Корректировка работающих цехов, если новое общее количество меньше текущих работающих
-            if (newTotal < stations[index].activeWorkshops) {
-                stations[index].activeWorkshops = newTotal;
-            }
-            stations[index].totalWorkshops = newTotal;
-            
-            stations[index].stationClass = getIntInput("Введите новый класс станции: ", 1);
-            cout << "Параметры КС обновлены!\n";
-        }
-    }
-
+    
     void saveData() const {
         string filename = getStringInputConst("Введите имя файла для сохранения: ");
         if (filename.find('.') == string::npos) {
@@ -434,10 +481,14 @@ public:
             return;
         }
         
+        file << "NEXT_PIPE_ID " << nextPipeId << endl;
+        file << "NEXT_STATION_ID " << nextStationId << endl;
+        
         // Сохранение труб
         file << "PIPES " << pipes.size() << endl;
         for (const auto& pipe : pipes) {
-            file << pipe.name << endl
+            file << pipe.id <<endl
+                 << pipe.name << endl
                  << pipe.length << endl
                  << pipe.diameter << endl
                  << pipe.underRepair << endl;
@@ -446,7 +497,8 @@ public:
         // Сохранение станций
         file << "STATIONS " << stations.size() << endl;
         for (const auto& station : stations) {
-            file << station.name << endl
+            file << station.id << endl
+                 << station.name << endl
                  << station.totalWorkshops << endl
                  << station.activeWorkshops << endl
                  << station.stationClass << endl;
@@ -458,61 +510,73 @@ public:
 
     void loadData() {
         string filename = getStringInput("Введите имя файла для загрузки: ");
-        
-        ifstream file(filename);
-        if (!file.is_open()) {
-            cout << "Ошибка: файл " << filename << " не найден.\n";
-            return;
-        }
-        
-        pipes.clear();
-        stations.clear();
-        
-        string header;
-        size_t count;
-        
-        // Загрузка труб
-        file >> header >> count;
-        if (header != "PIPES") {
-            cout << "Ошибка: неверный формат файла.\n";
-            return;
-        }
-        file.ignore();
-        
-        for (size_t i = 0; i < count; ++i) {
-            Pipe pipe;
-            getline(file, pipe.name);
-            file >> pipe.length >> pipe.diameter >> pipe.underRepair;
-            file.ignore();
-            pipes.push_back(pipe);
-        }
-        
-        // Загрузка станций
-        file >> header >> count;
-        if (header != "STATIONS") {
-            cout << "Ошибка: неверный формат файла.\n";
-            return;
-        }
-        file.ignore();
-        
-        for (size_t i = 0; i < count; ++i) {
-            CompressorStation station;
-            getline(file, station.name);
-            file >> station.totalWorkshops >> station.activeWorkshops >> station.stationClass;
-            file.ignore();
-            
-            // Проверка корректности данных
-            if (station.activeWorkshops > station.totalWorkshops) {
-                station.activeWorkshops = station.totalWorkshops;
+                
+                ifstream file(filename);
+                if (!file.is_open()) {
+                    cout << "Ошибка: файл " << filename << " не найден.\n";
+                    return;
+                }
+                
+                pipes.clear();
+                stations.clear();
+                
+                string header;
+                size_t count;
+                
+                // НОВОЕ: загружаем следующие ID
+                file >> header >> nextPipeId;
+                if (header != "NEXT_PIPE_ID") {
+                    // Если старый формат файла, сбрасываем позицию
+                    file.seekg(0);
+                    nextPipeId = 1;
+                    nextStationId = 1;
+                } else {
+                    file >> header >> nextStationId;
+                }
+                
+                file >> header >> count;
+                if (header != "PIPES") {
+                    cout << "Ошибка: неверный формат файла.\n";
+                    return;
+                }
+                file.ignore();
+                
+                for (size_t i = 0; i < count; ++i) {
+                    Pipe pipe;
+                    file >> pipe.id;
+                    file.ignore();
+                    getline(file, pipe.name);
+                    file >> pipe.length >> pipe.diameter >> pipe.underRepair;
+                    file.ignore();
+                    pipes.push_back(pipe);
+                }
+                
+                file >> header >> count;
+                if (header != "STATIONS") {
+                    cout << "Ошибка: неверный формат файла.\n";
+                    return;
+                }
+                file.ignore();
+                
+                for (size_t i = 0; i < count; ++i) {
+                    CompressorStation station;
+                    file >> station.id;
+                    file.ignore();
+                    getline(file, station.name);
+                    file >> station.totalWorkshops >> station.activeWorkshops >> station.stationClass;
+                    file.ignore();
+                    
+                    if (station.activeWorkshops > station.totalWorkshops) {
+                        station.activeWorkshops = station.totalWorkshops;
+                    }
+                    
+                    stations.push_back(station);
+                }
+                
+                file.close();
+                cout << "Данные загружены из файла: " << fs::absolute(filename) << endl;
+                cout << "Загружено труб: " << pipes.size() << ", КС: " << stations.size() << endl;
             }
-            
-            stations.push_back(station);
-        }
-        
-        file.close();
-        cout << "Данные загружены из файла: " << fs::absolute(filename) << endl;
-        cout << "Загружено труб: " << pipes.size() << ", КС: " << stations.size() << endl;
-    }
 
     void run() {
         while (true) {
@@ -549,23 +613,33 @@ public:
                 case 10:
                     if (!pipes.empty()) {
                         viewAll();
-                        int index = getIntInput("Введите номер трубы для удаления: ", 0, pipes.size()-1);
-                        cout << "Удалена труба: " << pipes[index].name << "\n";
-                        pipes.erase(pipes.begin() + index);
+                        int id = getIntInput("Введите ID трубы для удаления: ", 1);
+                        int index = findPipeIndexById(id);
+                        if (index != -1) {
+                            cout << "Удалена труба: " << pipes[index].name << " (ID: " << pipes[index].id << ")\n";
+                            pipes.erase(pipes.begin() + index);
+                                                    } else {
+                            cout << "Труба с ID " << id << " не найдена!\n";
+                                                    }
                     } else {
                         cout << "Нет доступных труб!\n";
                     }
                     break;
                 case 11:
                     if (!stations.empty()) {
-                        viewAll();
-                        int index = getIntInput("Введите номер КС для удаления: ", 0, stations.size()-1);
-                        cout << "Удалена КС: " << stations[index].name << "\n";
-                        stations.erase(stations.begin() + index);
-                    } else {
-                        cout << "Нет доступных КС!\n";
-                    }
-                    break;
+                                            viewAll();
+                                            int id = getIntInput("Введите ID КС для удаления: ", 1);
+                                            int index = findStationIndexById(id);
+                                            if (index != -1) {
+                                                cout << "Удалена КС: " << stations[index].name << " (ID: " << stations[index].id << ")\n";
+                                                stations.erase(stations.begin() + index);
+                                            } else {
+                                                cout << "КС с ID " << id << " не найдена!\n";
+                                            }
+                                        } else {
+                                            cout << "Нет доступных КС!\n";
+                                        }
+                                        break;
                 case 12: deleteMultiplePipes(); break;
                 case 13: deleteMultipleStations(); break;
                 case 14: saveData(); break;
